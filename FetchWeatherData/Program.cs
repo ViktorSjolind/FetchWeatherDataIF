@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.Azure.WebJobs;
+using Microsoft.Azure.WebJobs.Extensions.Timers;
 
 namespace FetchWeatherData
 {
@@ -22,6 +23,7 @@ namespace FetchWeatherData
             }
 
             var host = new JobHost(config);
+            config.UseTimers();
             // The following code ensures that the WebJob will be running continuously
             host.RunAndBlock();
         }
