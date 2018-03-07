@@ -10,9 +10,9 @@ namespace FetchWeatherData
 {
     public class Functions
     {
-        private static int runs = 0;
         private static string URL = "http://api.openweathermap.org/data/2.5/weather?q=Turku,fi&units=metric&APPID=5cedb909eecd599fe08212841796f86c";
         private static String connectionString = ConfigurationManager.ConnectionStrings["DefaultConnection"].ConnectionString;
+
 
         // This function will get triggered/executed when a new message is written 
         // on an Azure Queue called queue.
@@ -27,33 +27,42 @@ namespace FetchWeatherData
         // that lease will still be held until it expires naturally. 
         // https://github.com/Azure/azure-webjobs-sdk-extensions/issues/25
         // In Azure, if the JobHost shuts down (e.g role restarts, etc.) graceful shutdown logic will release the lock immediately
-        public static void GetAndSaveWeatherData([TimerTrigger("*/5 * * * * *", RunOnStartup = true)] TimerInfo timerInfo)
+        public static void GetAndSaveWeatherData([TimerTrigger("0 0 * * * *", RunOnStartup = true)] TimerInfo timerInfo)
         {
-            Console.WriteLine("Timer job fired! For the: " + runs + "th time");
+            //Console.WriteLine("TimerTrigger fired!");
             string temperature = GetTemperature();
             DateTime timestamp = DateTime.UtcNow;
             SaveData(temperature, timestamp);
-            runs++;
+        
         }
 
         private static void SaveData(string temperature, DateTime timestamp)
         {
-            Console.WriteLine("Temp: " + temperature + ". Timestamp: " + timestamp);
-            
-            using (var connection = new SqlConnection(connectionString))
-            {
-                using (SqlCommand command = new SqlCommand())
-                {
-                    command.Connection = connection;
-                    command.CommandType = CommandType.Text;
-                    command.CommandText = @"insert into Weather (Temperature, UpdateTime) values(@temperatureValue, @timestampValue)";
-                    command.Parameters.Add("@temperatureValue", SqlDbType.Decimal).Value = temperature;
-                    command.Parameters.Add("@timestampValue", SqlDbType.DateTime).Value = timestamp;    //SQL Timestamp deprecated
-                    connection.Open();
-                    command.ExecuteNonQuery();
+            //Console.WriteLine("Temp: " + temperature + ". Timestamp: " + timestamp);
 
+            try
+            {
+                //using: object is disposed as soon as it goes out of scope, and it doesn't require explicit code to ensure that this happens.
+                using (var connection = new SqlConnection(connectionString))
+                {
+                    using (SqlCommand command = new SqlCommand())
+                    {
+                        command.Connection = connection;
+                        command.CommandType = CommandType.Text;
+                        command.CommandText = @"insert into Weather (Temperature, UpdateTime) values(@temperatureValue, @timestampValue)";
+                        command.Parameters.Add("@temperatureValue", SqlDbType.Decimal).Value = temperature;
+                        command.Parameters.Add("@timestampValue", SqlDbType.DateTime).Value = timestamp;    //SQL Timestamp deprecated
+                        connection.Open();
+                        command.ExecuteNonQuery();
+
+                    }
                 }
             }
+            catch (SqlException sqlException)
+            {
+                Console.Error.WriteLine(sqlException);
+            }
+            
         }
 
         private static string GetTemperature()
@@ -64,9 +73,9 @@ namespace FetchWeatherData
                 try
                 {
                     jsonData = webClient.DownloadString(URL);
-                }catch(Exception e)
+                }catch(Exception ex)
                 {
-                    Console.WriteLine(e);
+                    Console.Error.WriteLine(ex);
                 }
                 dynamic parsedJson = Newtonsoft.Json.JsonConvert.DeserializeObject(jsonData); 
                 return parsedJson.main.temp;

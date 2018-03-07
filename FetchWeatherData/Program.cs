@@ -31,9 +31,9 @@ namespace FetchWeatherData
                 config.Singleton.ListenerLockPeriod = TimeSpan.FromSeconds(15);
                 config.Queues.MaxPollingInterval = TimeSpan.FromSeconds(2);
             }
-            catch(Exception e)
+            catch(Exception ex)
             {
-                Console.WriteLine(e.ToString());
+                Console.Error.WriteLine(ex);
             }
 
             config.UseTimers();
